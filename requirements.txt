@@ -1,0 +1,17 @@
+numpy==2.3.4
+pandas==2.3.3
+scipy==1.16.2
+scikit-learn==1.7.2
+statsmodels==0.14.5
+tensorflow==2.20.0
+torch==2.9.0
+cornac==2.3.5
+matplotlib==3.10.7
+seaborn==0.13.2
+brokenaxes==0.6.2
+pyarrow==22.0.0
+h5py==3.15.1
+PyYAML==6.0.3
+joblib==1.5.2
+tqdm==4.67.1
+requests==2.32.5
