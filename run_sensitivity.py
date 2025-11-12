@@ -1,8 +1,6 @@
 import logging
 import argparse
 import yaml
-import pandas as pd
-import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Set, List
 
@@ -10,7 +8,7 @@ from cornac.metrics import NDCG, Recall, Precision
 
 from src.utils import set_seed
 from src.data_loader import load_data
-from src.baseline_models import run_model as run_baseline_training
+from src.baseline_models import run_model as run_baseline_model
 from src.user_profiling import compute_long_tail_items, compute_item_pops
 from src.reranker import Reranker
 from src.experiment import run_experiment
@@ -45,8 +43,7 @@ def run_lambda_sweep(config: Dict, eval_method: Any, item_info: Dict):
         long_tail_items=long_tail_items
     )
     
-    logging.info("최적 파라미터로 베이스라인 모델 로드")
-    loaded_models, _ = run_baseline_training(
+    loaded_models, _ = run_baseline_model(
         eval_method=eval_method,
         model_names=config['models'],
         dataset_name=config['dataset_name'],
@@ -60,6 +57,9 @@ def run_lambda_sweep(config: Dict, eval_method: Any, item_info: Dict):
     if not loaded_models:
         logging.error("로드된 베이스라인 모델이 없음")
         return
+    
+    import pandas as pd
+    import numpy as np
 
     if 'lambda_sweep_values' in config['reranking']:
         lambda_values = np.array(config['reranking']['lambda_sweep_values'])
@@ -170,7 +170,6 @@ def main():
             logging.error(f"YAML 설정 파일 구문 분석 오류 발생: {e}")
             return
             
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logging.info(f"설정 파일 로드 완료: {config_path}")
 
     set_seed(config['seed'])

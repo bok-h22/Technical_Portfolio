@@ -10,9 +10,9 @@ from cornac.experiment import Experiment
 from cornac.hyperopt import GridSearch, Discrete
 
 import tensorflow as tf
+import torch
 
-# os.environ['TF_MLIR_ENABLE_V1_PASSES'] = '1'
-# tf.get_logger().setLevel('ERROR') 
+os.environ['TF_MLIR_ENABLE_V1_PASSES'] = '1'
 
 def get_gridsearch_space(model_name: str) -> List[Discrete]:
     if model_name == "WMF":

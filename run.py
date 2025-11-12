@@ -8,7 +8,7 @@ from cornac.metrics import NDCG, Recall, Precision
 
 from src.utils import set_seed, save_results_by_model
 from src.data_loader import load_data
-from src.baseline_models import run_model as run_baseline_training
+from src.baseline_models import run_model as run_baseline_model
 from src.user_profiling import compute_long_tail_items, compute_item_pops
 from src.reranker import Reranker 
 from src.experiment import run_experiment
@@ -16,7 +16,7 @@ from src.experiment import run_experiment
 def train_baselines(config: Dict, eval_method: Any):
     logging.info("--- 1. 베이스라인 모델 학습 시작 (GridSearch) ---")
     
-    run_baseline_training(
+    run_baseline_model(
         eval_method=eval_method,
         model_names=config['models'],
         dataset_name=config['dataset_name'],
@@ -51,8 +51,7 @@ def run_reranking(config: Dict, eval_method: Any, item_info: Dict):
         long_tail_items=long_tail_items
     )
 
-    logging.info("최적 파라미터로 베이스라인 모델 로드")
-    loaded_models, _ = run_baseline_training(
+    loaded_models, _ = run_baseline_model(
         eval_method=eval_method,
         model_names=config['models'],
         dataset_name=config['dataset_name'],
