@@ -1,0 +1,58 @@
+---
+# Filepath
+seed: 42
+dataset_name: "book_crossing"
+data_path: "./data/book-crossing/"
+results_dir: "./results"
+
+# Data preprocessing
+data_split:
+  time_aware: false
+  test_size: 0.2
+  val_size: 0.0
+  min_interactions: 20
+
+# Recsys baseline models
+models:
+  # - "WMF"
+  - "EASEᴿ"
+  - "VAECF"
+  - "NeuMF"
+
+# Hyperparameters
+model_params:
+  WMF:
+    k: 200
+    max_iter: 100
+    learning_rate: 0.001
+    lambda_u: 0.01
+    lambda_v: 0.01
+  EASEᴿ:
+    lamb: 500
+  VAECF:
+    k: 10
+    autoencoder_structure: [20]
+    n_epochs: 100
+    learning_rate: 0.001
+  NeuMF:
+    num_factors: 8
+    layers: [64, 32, 16, 8]
+    num_epochs: 10
+    lr: 0.001
+
+# Reranker
+reranking:
+  top_k_candidates: 1000
+  final_k: 10
+  modes: ["None", "I_DIV", "A_DIV", "I_DIV+A_DIV"]
+  personalize: ["P", "NP"]
+  params:
+    lambda_rel: 0.5
+    lambda_div_mix: 0.5
+    beta_param: 10.0
+
+# User profiling
+analysis:
+  long_tail_head_percentage: 0.2
+  user_pref_method: "MAP"
+  user_pref_alpha: 1.0
