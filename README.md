@@ -48,5 +48,6 @@
 - 관련 코드:
   - `notebooks/2_ANOVA_Analysis.ipynb` (그룹별 성능 차이 분석 및 시각화)
   - `notebooks/3_Plot_Sensitivity.ipynb` (람다 값 민감도 분석 시각화)
+
 ![Example_result](./results/movielens_1m/20251112_movielens_1m_VAECF_sensitivity_plot.png
 )
