@@ -9,7 +9,7 @@
 - 관련 코드:
   - `src/data_loader.py` (데이터 로딩 및 전처리)
   - `src/user_profiling.py` (사용자 프로필 계산)
-
+- 예시:
   ```python
   # 유저의 아이템 사용 기록을 활용하여 장르별 선호도 분포 계산하기
   def compute_user_preference(
@@ -94,6 +94,6 @@
 - 관련 코드:
   - `notebooks/2_ANOVA_Analysis.ipynb` (그룹별 성능 차이 분석 및 시각화)
   - `notebooks/3_Plot_Sensitivity.ipynb` (람다 값 민감도 분석 시각화)
-
+- 예시:
 ![Example_result](./results/movielens_1m/20251112_movielens_1m_VAECF_sensitivity_plot.png
 )
