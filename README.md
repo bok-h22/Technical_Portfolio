@@ -10,6 +10,52 @@
   - `src/data_loader.py` (데이터 로딩 및 전처리)
   - `src/user_profiling.py` (사용자 프로필 계산)
 
+  ```python
+  # 유저의 아이템 사용 기록을 활용하여 장르별 선호도 분포 계산하기
+  def compute_user_preference(
+    train_set: Any, 
+    item_info: Dict[int, List[str]], 
+    method: str = "MLE", 
+    alpha_value: float = 1.0
+  ) -> Dict[int, Dict[str, float]]:
+    user_category_counts = defaultdict(lambda: defaultdict(int))
+    all_categories = set(chain.from_iterable(item_info.values()))
+    K = len(all_categories) 
+    
+    if K == 0:
+        logging.warning("item_info에 카테고리 정보가 없음. 빈 선호도 반환")
+        return {}
+
+    for uid_idx, iid_idx, _ in zip(*train_set.uir_tuple):
+        if iid_idx in item_info:
+            for category in item_info[iid_idx]:
+                user_category_counts[uid_idx][category] += 1
+    
+    user_preferences = {}
+    
+    for uid_idx, category_counts in user_category_counts.items():
+        total_count = sum(category_counts.values())
+        
+        if method == "MLE":
+            if total_count == 0: continue
+            user_preferences[uid_idx] = {
+                cat: category_counts.get(cat, 0) / total_count
+                for cat in all_categories
+            }
+        
+        elif method == "MAP":
+            denominator = total_count + (alpha_value * K)
+            if denominator == 0: continue
+            user_preferences[uid_idx] = {
+                cat: (category_counts.get(cat, 0) + alpha_value) / denominator
+                for cat in all_categories
+            }
+        else:
+            raise ValueError(f"알 수 없는 선호도 계산 방법: {method}")
+            
+    return user_preferences
+  ```
+
 ---
 
 ### 2. 데이터 활용 및 분석
