@@ -92,3 +92,20 @@ def compute_user_gini_impurity(
     gini_impurity_values = 1 - np.sum(np.square(prob_matrix), axis=1)
     
     return dict(zip(uids, gini_impurity_values))
+
+def compute_user_shannon_entropy(
+    user_profile: Dict[int, Dict[str, float]]
+) -> Dict[int, float]:
+    if not user_profile:
+        return {}
+    
+    uids = list(user_profile.keys())
+    prob_matrix = np.array([list(dist.values()) for dist in user_profile.values()])
+    mask = prob_matrix > 0
+    
+    log_p = np.zeros_like(prob_matrix)
+    log_p[mask] = np.log2(prob_matrix[mask])
+    
+    shannon_entropy_values = -np.sum(prob_matrix * log_p, axis=1)
+    
+    return dict(zip(uids, shannon_entropy_values))
