@@ -7,7 +7,7 @@ from .user_profiling import (
     compute_user_preference,
     compute_item_pops,
     compute_user_novelty,
-    compute_user_gini_impurity
+    compute_user_shannon_impurity
 )
 
 class Reranker:
@@ -42,20 +42,20 @@ class Reranker:
         )
         item_pops = compute_item_pops(train_set)
         user_novelty_raw = compute_user_novelty(train_set, item_pops) 
-        user_gini_raw = compute_user_gini_impurity(user_prefs)
+        user_shannon_raw = compute_user_shannon_impurity(user_prefs)
 
-        gini_factors = user_gini_raw
-        log1p_gini_values = np.array([np.log1p(v) for v in gini_factors.values() if v > 0])
-        mean_log_gini = np.mean(log1p_gini_values) if log1p_gini_values.size > 0 else 0
-        std_log_gini = np.std(log1p_gini_values) + 1e-9 
+        shannon_factors = user_shannon_raw
+        log1p_shannon_values = np.array([np.log1p(v) for v in shannon_factors.values() if v > 0])
+        mean_log_shannon = np.mean(log1p_shannon_values) if log1p_shannon_values.size > 0 else 0
+        std_log_shannon = np.std(log1p_shannon_values) + 1e-9 
         
-        scaled_gini_factors = {}
-        for u, v in gini_factors.items():
+        scaled_shannon_factors = {}
+        for u, v in shannon_factors.items():
             log_v = np.log1p(v)
-            z_score = (log_v - mean_log_gini) / std_log_gini 
+            z_score = (log_v - mean_log_shannon) / std_log_shannon 
             scaled_v = z_score * 0.5 + 1.0 
             clipped_v = np.clip(scaled_v, 0.0 + 1e-9, 2.0 - 1e-9)
-            scaled_gini_factors[u] = clipped_v
+            scaled_shannon_factors[u] = clipped_v
         
         novelty_factors = user_novelty_raw
         log1p_novelty_values = np.array([np.log1p(v) for v in novelty_factors.values() if v > 0])
@@ -75,7 +75,7 @@ class Reranker:
         return {
             "item_pops": item_pops,
             "user_preferences": user_prefs,
-            "user_gini": scaled_gini_factors, 
+            "user_shannon": scaled_shannon_factors, 
             "user_novelty": scaled_novelty_factors 
         }
 
@@ -86,8 +86,8 @@ class Reranker:
                div_mode: str, 
                pers_mode: str
                ) -> Tuple[List[int], List[float]]:
-        user_gini = self.diversification_data["user_gini"].get(user_idx, 1.0)
-        gini_factor = user_gini if pers_mode == "P" else 1.0
+        user_shannon = self.diversification_data["user_shannon"].get(user_idx, 1.0)
+        shannon_factor = user_shannon if pers_mode == "P" else 1.0
 
         user_novelty = self.diversification_data["user_novelty"].get(user_idx, 1.0)
         novelty_factor = user_novelty if pers_mode == "P" else 1.0
@@ -110,7 +110,7 @@ class Reranker:
                 
                 i_div_score = 0.0
                 if "I_DIV" in div_mode:
-                    i_div_score = self._compute_i_div(item_id, recommended_topics, user_preference, gini_factor)
+                    i_div_score = self._compute_i_div(item_id, recommended_topics, user_preference, shannon_factor)
                 
                 a_div_score = 0.0
                 if "A_DIV" in div_mode:
@@ -143,7 +143,7 @@ class Reranker:
         return final_rank, final_scores 
 
     def _compute_i_div(self, item_id: int, recommended_topics: Set[str], 
-                       user_preference: Dict[str, float], gini_factor: float) -> float:
+                       user_preference: Dict[str, float], shannon_factor: float) -> float:
         item_topics = self.item_info.get(item_id, [])
         if not item_topics:
             return 0.0
@@ -154,7 +154,7 @@ class Reranker:
             if topic not in recommended_topics
         )
         
-        return gini_factor * etc_score
+        return shannon_factor * etc_score
 
     def _compute_a_div(self, item_id: int, dynamic_beta: float, 
                        novelty_factor: float) -> float:
