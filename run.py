@@ -1,6 +1,9 @@
 import argparse
 import yaml
 import logging
+import numpy as np
+import pandas as pd
+from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict, Set, Any, Tuple
 
@@ -12,6 +15,8 @@ from src.baseline_models import run_model as run_baseline_model
 from src.user_profiling import compute_long_tail_items, compute_item_pops
 from src.reranker import Reranker 
 from src.experiment import run_experiment
+
+TODAY_DATE = "20251118"
 
 def train_baselines(config: Dict, eval_method: Any):
     logging.info("--- 1. 베이스라인 모델 학습 시작 (GridSearch) ---")
@@ -28,7 +33,52 @@ def train_baselines(config: Dict, eval_method: Any):
     )
     logging.info("--- 베이스라인 학습 완료 (GridSearch) ---")
 
-def run_reranking(config: Dict, eval_method: Any, item_info: Dict):
+def find_optimal_lambda(
+    results_df: pd.DataFrame, 
+    beta: float = 0.5, 
+    ndcg_metric: str = 'NDCG@10', 
+    div_metric: str = 'CompositeDiv'
+) -> Dict[str, Dict[str, float]]:
+    max_acc = results_df[ndcg_metric].max()
+    max_div = results_df[div_metric].max()
+    
+    if max_acc == 0 or max_div == 0:
+        print("경고: NDCG 또는 CompositeDiv의 최대값이 0임")
+        return {}
+
+    beta_sq = beta ** 2
+    df_calc = results_df.copy()
+    
+    df_calc['Acc_Norm'] = df_calc[ndcg_metric] / max_acc
+    df_calc['Div_Norm'] = df_calc[div_metric] / max_div
+
+    numerator = (1 + beta_sq) * df_calc['Acc_Norm'] * df_calc['Div_Norm']
+    denominator = (beta_sq * df_calc['Acc_Norm']) + df_calc['Div_Norm']
+    
+    df_calc['F_beta_Score'] = np.divide(
+        numerator, denominator, 
+        out=np.zeros_like(numerator), 
+        where=denominator != 0
+    )
+    
+    optimal_params = defaultdict(dict)
+    df_optimal = df_calc[df_calc['diversification'] != 'None']
+    
+    grouped = df_optimal.groupby(['model', 'diversification', 'personalize'])
+    
+    for names, group in grouped:
+        model, div_mode, per_mode = names
+        max_score_row = group.loc[group['F_beta_Score'].idxmax()]
+        mode_key = f"{div_mode}_{per_mode}"
+        
+        optimal_params[model][mode_key] = max_score_row['lambda_param']
+        
+    return dict(optimal_params)
+
+def run_reranking(config: Dict, 
+                  eval_method: Any, 
+                  item_info: Dict,
+                  optimal_lambda_map: Dict[str, Dict[str, float]] = None):
     logging.info("--- 2. 리랭킹 실험 시작 ---")
     
     train_set = eval_method.train_set
@@ -76,10 +126,17 @@ def run_reranking(config: Dict, eval_method: Any, item_info: Dict):
         
         for per_mode in pers_modes:
             for div_mode in rerank_modes:
+                mode_key = f"{div_mode}_{per_mode}"
+                lambda_to_use = config['reranking']['params']['lambda_rel']                 
+                if optimal_lambda_map and model_name in optimal_lambda_map and mode_key in optimal_lambda_map[model_name]:
+                    lambda_to_use = optimal_lambda_map[model_name][mode_key]
+                    logging.info(f"-> 최적 람다 적용: {model_name} | {mode_key} -> λ={lambda_to_use:.2f}")
+                
                 if div_mode == "None" and per_mode != pers_modes[0]:
                     continue
-                
+                    
                 current_pers_mode = per_mode if div_mode != "None" else "NP"
+                reranker.lambda_rel = lambda_to_use
                 
                 logging.info(f"실험 진행: 모델 {model_name}, 모드 {div_mode}, 개인화 {current_pers_mode}")
                 
@@ -95,6 +152,7 @@ def run_reranking(config: Dict, eval_method: Any, item_info: Dict):
                         **config['reranking']['params'], 
                         "diversification_mode": div_mode,
                         "personalize_mode": current_pers_mode,
+                        "lambda_rel": lambda_to_use,
                         "final_k": config['reranking']['final_k'],
                         "topk_candidates": config['reranking']['top_k_candidates']
                     }
@@ -159,12 +217,22 @@ def main():
     except Exception as e:
         logging.error(f"데이터 로드 중 예상치 못한 오류 발생: {e}")
         return
+    
+    results_dir = Path(config['results_dir']) / config['dataset_name']
+    sweep_file = results_dir / f"{TODAY_DATE}_{config['dataset_name']}_parameter_sweep_results.csv" 
+    
+    if sweep_file.exists():
+        sweep_df = pd.read_csv(sweep_file)
+        optimal_lambda_map = find_optimal_lambda(sweep_df, beta=0.5) 
+    else:
+        logging.warning("람다 스윕 결과 파일이 없어 최적화된 람다를 찾을 수 없음. 기본값 사용.")
+        optimal_lambda_map = None
 
     if args.step == "train" or args.step == "all":
         train_baselines(config, eval_method)
         
     if args.step == "rerank" or args.step == "all":
-        run_reranking(config, eval_method, item_info)
+        run_reranking(config, eval_method, item_info, optimal_lambda_map)
 
     logging.info("--- 프로세스 완료 ---")
 
