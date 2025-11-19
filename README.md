@@ -4,24 +4,25 @@
 - 수행 내용:
   - 데이터 처리부터 실험, 분석까지 전 과정을 파이썬(`Python`)으로 수행
   - `pandas` 모듈을 사용해 구분자(`::` or `;`)가 제각각인 원본 텍스트 파일들을 표준 DataFrame으로 로드, `re`(정규표현식) 모듈을 이용해 `categories` 변수의 오기입(예: "childrens")이나 특수문자 등을 일괄 정제하는 데이터 표준화를 구현
-  - `numpy`를 활용해 사용자의 모든 시청/구매 기록(`Train Set`)을 분석, "이 사용자가 얼마나 다양한 주제를 보는지" (`Gini Impurity`)와 "얼마나 새로운 것을 탐색하는지" (`Novelty`) 같은 개인화 프로필을 사전 계산
+  - `numpy`를 활용해 사용자의 모든 시청/구매 기록(`Train Set`)을 분석, "이 사용자가 얼마나 다양한 주제를 보는지" (`shannon Impurity`)와 "얼마나 새로운 것을 탐색하는지" (`Novelty`) 같은 개인화 프로필을 사전 계산
   - `sklearn`의 `train_test_split`을 기본 분할 로직으로 활용하되, `config.yaml`의 `time_aware: true` 설정 시 `timestamp`를 기준으로 데이터를 시간 순서대로 정렬하여 `Train/Test`를 나누는 `split_data` 함수를 별도 구현.
 - 관련 코드:
   - `src/data_loader.py` (데이터 로딩 및 전처리)
   - `src/user_profiling.py` (사용자 프로필 계산)
 - 예시:
+
   ```python
   # 유저의 아이템 사용 기록을 활용하여 장르별 선호도 분포 계산하기
   def compute_user_preference(
-    train_set: Any, 
-    item_info: Dict[int, List[str]], 
-    method: str = "MLE", 
+    train_set: Any,
+    item_info: Dict[int, List[str]],
+    method: str = "MLE",
     alpha_value: float = 1.0
   ) -> Dict[int, Dict[str, float]]:
     user_category_counts = defaultdict(lambda: defaultdict(int))
     all_categories = set(chain.from_iterable(item_info.values()))
-    K = len(all_categories) 
-    
+    K = len(all_categories)
+
     if K == 0:
         logging.warning("item_info에 카테고리 정보가 없음. 빈 선호도 반환")
         return {}
@@ -30,19 +31,19 @@
         if iid_idx in item_info:
             for category in item_info[iid_idx]:
                 user_category_counts[uid_idx][category] += 1
-    
+
     user_preferences = {}
-    
+
     for uid_idx, category_counts in user_category_counts.items():
         total_count = sum(category_counts.values())
-        
+
         if method == "MLE":
             if total_count == 0: continue
             user_preferences[uid_idx] = {
                 cat: category_counts.get(cat, 0) / total_count
                 for cat in all_categories
             }
-        
+
         elif method == "MAP":
             denominator = total_count + (alpha_value * K)
             if denominator == 0: continue
@@ -52,7 +53,7 @@
             }
         else:
             raise ValueError(f"알 수 없는 선호도 계산 방법: {method}")
-            
+
     return user_preferences
   ```
 
@@ -64,7 +65,7 @@
 - 수행 내용:
   - 추천 시스템 오픈소스 라이브러리인 `cornac` 을 활용해 `WMF`, `EASE`, `VAECF`, `NeuMF` 와 같은 4가지 표준 추천 모델을 이를 학습하고 평가하는 `run_model` 구현.
   - 베이스라인 모델이 뽑은 추천 목록을 입력받아, `관련성`과 `다양성`의 균형을 다시 맞추는 `Reranker` 클래스(`src/reranker.py`)를 구현
-  - `Reranker`는 `run.py` 실행 시 미리 계산된 사용자 프로필(`Gini`, `Novelty`)을 불러옴. 그리고 $\lambda$(람다) 가중치에 따라, "사용자가 새로운 걸 좋아하면(Novelty 높음)" 숨겨진 아이템(A-DIV)에, "사용자가 넓게 들으면(Gini 높음)" 다양한 주제(I-DIV)에 가산점을 주는 식의 룰로 동작.
+  - `Reranker`는 `run.py` 실행 시 미리 계산된 사용자 프로필(`shannon`, `Novelty`)을 불러옴. 그리고 $\lambda$(람다) 가중치에 따라, "사용자가 새로운 걸 좋아하면(Novelty 높음)" 숨겨진 아이템(A-DIV)에, "사용자가 넓게 들으면(shannon 높음)" 다양한 주제(I-DIV)에 가산점을 주는 식의 룰로 동작.
   - `run_sensitivity.py` 스크립트를 별도 구현하여, 람다($\lambda$) 가중치를 0.1~0.9까지 바꿔가며 실행하는 민감도 분석 수행
 - 실행 방법:
 
@@ -95,5 +96,4 @@
   - `notebooks/2_ANOVA_Analysis.ipynb` (그룹별 성능 차이 분석 및 시각화)
   - `notebooks/3_Plot_Sensitivity.ipynb` (람다 값 민감도 분석 시각화)
 - 예시:
-![Example_result](./results/movielens_1m/20251112_movielens_1m_VAECF_sensitivity_plot.png
-)
+  ![Example_result](./results/movielens_1m/20251112_movielens_1m_VAECF_sensitivity_plot.png)
