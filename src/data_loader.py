@@ -1,6 +1,7 @@
 import re
 import html
 import logging
+import ast
 from pathlib import Path
 from typing import List, Tuple, Any, Callable, Dict
 
@@ -22,6 +23,23 @@ def normalize_category_name(name: str) -> str:
         "childerns": "children"
     }
     return correction_map.get(name, name)
+
+def ensure_category_list(x: Any) -> List[str]:
+    if isinstance(x, list):
+        return x
+    
+    if pd.isna(x) or x == "" or x is None:
+        return []
+        
+    if isinstance(x, str):
+        if x.strip().startswith('[') and x.strip().endswith(']'):
+            try:
+                return ast.literal_eval(x)
+            except (ValueError, SyntaxError):
+                pass
+        return [x]
+    
+    return [str(x)]
 
 def load_movielens_1m(path: str) -> pd.DataFrame:
     p = Path(path)
@@ -62,7 +80,7 @@ def load_bookcrossing(path: str) -> pd.DataFrame:
     
     ratings.columns = ratings_cols
     items.columns = items_cols
-
+    items["categories"] = items["categories"].apply(ensure_category_list)
     bookcrossing_df = pd.merge(ratings, items, how="inner", on="iid")
     return bookcrossing_df
 
@@ -140,7 +158,6 @@ def split_data(
         if "timestamp" not in df.columns:
             raise ValueError("'time_aware=True'이지만 'timestamp' 컬럼이 없음")
         
-        # 시간 기반 분할 진행 시작
         for _, group in df_filtered.groupby('uid'):
             group_sorted = group.sort_values('timestamp', ascending=True)
             
@@ -206,7 +223,7 @@ def load_data(
     raw_df = loader_func(path=path)
     
     logging.info(f"데이터 분할 진행 (최소 상호작용 수={split_config.get('min_interactions')})...")
-    train_df, val_df, test_df = split_data(
+    train_df, _, test_df = split_data(
         raw_df,  
         time_aware=split_config.get("time_aware", False),
         test_size=split_config.get("test_size", 0.2),
