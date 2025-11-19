@@ -37,7 +37,7 @@ model_params:
   NeuMF:
     num_factors: 8
     layers: [64, 32, 16, 8]
-    num_epochs: 10
+    num_epochs: 20
     lr: 0.001
 
 # Reranker
