@@ -7,7 +7,7 @@ from .user_profiling import (
     compute_user_preference,
     compute_item_pops,
     compute_user_novelty,
-    compute_user_shannon_impurity
+    compute_user_shannon_entropy
 )
 
 class Reranker:
@@ -42,7 +42,7 @@ class Reranker:
         )
         item_pops = compute_item_pops(train_set)
         user_novelty_raw = compute_user_novelty(train_set, item_pops) 
-        user_shannon_raw = compute_user_shannon_impurity(user_prefs)
+        user_shannon_raw = compute_user_shannon_entropy(user_prefs)
 
         shannon_factors = user_shannon_raw
         log1p_shannon_values = np.array([np.log1p(v) for v in shannon_factors.values() if v > 0])
@@ -103,7 +103,7 @@ class Reranker:
             recommended_topics = set(chain.from_iterable(self.item_info.get(i, []) for i in final_rank))
             num_long_tail_in_rank = sum(1 for iid in final_rank if iid in self.long_tail_items)
             
-            dynamic_beta = 1 / (self.beta_param ** num_long_tail_in_rank)
+            dynamic_beta = self.beta_param ** num_long_tail_in_rank
 
             for i, item_id in enumerate(candidate_items):
                 original_score = candidate_scores[i]
